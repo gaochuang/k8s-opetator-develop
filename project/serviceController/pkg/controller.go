@@ -77,6 +77,8 @@ func (c *controller) Run(ch chan struct{}) {
 	for i := 0; i < worker; i++ {
 		go wait.Until(c.worker, time.Minute, ch)
 	}
+
+	<-ch
 }
 
 func (c *controller) worker() {
@@ -122,14 +124,21 @@ func (c *controller) syncService(item string) error {
 		return err
 	}
 
-	//判断annotation ingress/http是否存在
-	_, ok := service.GetAnnotations()["ingress/http"]
+	//判断annotation ingress/http是否存在以及其值是否为true
+	if value, ok := service.GetAnnotations()["ingress/http"]; ok {
+		if value == "true" {
+		} else {
+			ok = false
+		}
+	}
 
 	//判断ingress是否存在
 	_, err = c.ingressLister.Ingresses(namespaceKey).Get(name)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
+
+	fmt.Println(errors.IsNotFound(err))
 
 	//如果service存在，但是ingress不存在，需要创建ingress
 	if ok && errors.IsNotFound(err) {
@@ -146,7 +155,6 @@ func (c *controller) syncService(item string) error {
 			return err
 		}
 	}
-
 	return nil
 
 }

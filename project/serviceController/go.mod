@@ -1,4 +1,4 @@
-module serviceController
+module Controller
 
 go 1.18
 

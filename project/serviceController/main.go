@@ -33,7 +33,7 @@ func main() {
 	//4. 创建service informer
 	serviceInformer := factoryInformers.Core().V1().Services()
 
-	//5.创建ingree informer
+	//5.创建ingress informer
 	ingressInformer := factoryInformers.Networking().V1().Ingresses()
 
 	//6.创建controller
