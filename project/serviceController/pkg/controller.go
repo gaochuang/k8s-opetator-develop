@@ -3,6 +3,7 @@ package pkg
 import (
 	"context"
 	"fmt"
+	v15 "k8s.io/api/core/v1"
 	v12 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -125,11 +126,12 @@ func (c *controller) syncService(item string) error {
 	}
 
 	//判断annotation ingress/http是否存在以及其值是否为true
-	if value, ok := service.GetAnnotations()["ingress/http"]; ok {
-		if value == "true" {
-		} else {
-			ok = false
-		}
+	value, ok := service.GetAnnotations()["ingress/http"]
+
+	if value == "true" {
+		ok = true
+	} else {
+		ok = false
 	}
 
 	//判断ingress是否存在
@@ -138,12 +140,10 @@ func (c *controller) syncService(item string) error {
 		return err
 	}
 
-	fmt.Println(errors.IsNotFound(err))
-
 	//如果service存在，但是ingress不存在，需要创建ingress
 	if ok && errors.IsNotFound(err) {
 		//创建ingress
-		ig := c.createIngress(namespaceKey, name)
+		ig := c.createIngress(service)
 		_, err := c.client.NetworkingV1().Ingresses(namespaceKey).Create(context.TODO(), ig, v1.CreateOptions{})
 		if err != nil {
 			return err
@@ -159,13 +159,22 @@ func (c *controller) syncService(item string) error {
 
 }
 
-func (c *controller) createIngress(namespace string, name string) *v12.Ingress {
+func (c *controller) createIngress(service *v15.Service) *v12.Ingress {
 
+	fmt.Println("Create ingress")
 	ingress := v12.Ingress{}
-	ingress.Name = name
-	ingress.Namespace = namespace
+
+	//初始化ingress的OwnerReference,将ingress与service关联
+	ingress.ObjectMeta.OwnerReferences = []v1.OwnerReference{
+		*v1.NewControllerRef(service, v12.SchemeGroupVersion.WithKind("Service")),
+	}
+
+	ingress.Name = service.Name
+	ingress.Namespace = service.Namespace
 	pathType := v12.PathTypePrefix
+	ingressClassName := "nginx"
 	ingress.Spec = v12.IngressSpec{
+		IngressClassName: &ingressClassName,
 		Rules: []v12.IngressRule{
 			{
 				Host: "example.com",
@@ -177,7 +186,7 @@ func (c *controller) createIngress(namespace string, name string) *v12.Ingress {
 								PathType: &pathType,
 								Backend: v12.IngressBackend{
 									Service: &v12.IngressServiceBackend{
-										Name: name,
+										Name: service.Name,
 										Port: v12.ServiceBackendPort{
 											Number: 80,
 										},
