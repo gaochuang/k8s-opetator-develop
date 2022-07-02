@@ -21,13 +21,13 @@ func main() {
 		}
 	}
 
-	//2. create clientset
+	//2. create clientSet
 	clientSet, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	//3. 创建inforer
+	//3. 创建factory
 	factoryInformers := informers.NewSharedInformerFactory(clientSet, 0)
 
 	//4. 创建service informer
@@ -36,12 +36,17 @@ func main() {
 	//5.创建ingree informer
 	ingressInformer := factoryInformers.Networking().V1().Ingresses()
 
+	//6.创建controller
 	controller := pkg.NewController(clientSet, serviceInformer, ingressInformer)
 
 	stopCh := make(chan struct{})
+
+	//7.启动informer
 	factoryInformers.Start(stopCh)
+
+	//8.启动同步
 	factoryInformers.WaitForCacheSync(stopCh)
 
-	controller.Run()
+	controller.Run(stopCh)
 
 }
