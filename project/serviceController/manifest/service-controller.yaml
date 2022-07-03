@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: service-controller
+  name: service-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service-controller
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: service-controller
+    spec:
+      serviceAccountName: serice-controller-serviceaccount
+      containers:
+      - image: cleveryboy/service_controller:1.0.1
+        name: service-controller
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          exec:
+            command:
+              - cat
+              - /tmp/healthy
+          initialDelaySeconds: 3
+          initialDelaySeconds: 3
