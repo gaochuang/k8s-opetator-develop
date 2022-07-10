@@ -19,5 +19,6 @@ Examples:\
 &ensp;&ensp; generate-groups.sh all             github.com/example/project/pkg/client github.com/example/project/pkg/apis "foo:v1 bar:v1alpha1,v1beta1" \
 &ensp;&ensp; generate-groups.sh deepcopy,client github.com/example/project/pkg/client github.com/example/project/pkg/apis "foo:v1 bar:v1alpha1,v1beta1" \
 生成命令如下: \
-&ensp;&ensp;/root/code/code-generator/generate-groups.sh  all operator-crd/pkg/client operator-crd/pkg/apis crd.example.com:v1 --go-header-file=/root/code/code-generator/hack/boilerplate.go.txt --output-base ../
+&ensp;&ensp;/root/code/code-generator/generate-groups.sh  all operator-crd/pkg/client operator-crd/pkg/apis crd.example.com:v1 --go-header-file=/root/code/code-generator/hack/boilerplate.go.txt --output-base ../ \
 
+![alt 内容梳理](https://github.com/gaochuang/k8s-opetator-develop/blob/main/project/operator-crd/code-generator.png)
