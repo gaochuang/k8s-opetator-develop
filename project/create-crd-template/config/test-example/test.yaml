@@ -1,0 +1,7 @@
+apiVersion: mycontoller.temp/v1
+kind: Foo
+metadata:
+  name: test-crd
+spec:
+  name: test
+  replicas: 2
