@@ -18,5 +18,5 @@ package appcontroller
 
 // GroupName is the group name used in this package
 const (
-	GroupName = "appcontroller.k8s.io"
+	GroupName = "appcontroller.demo"
 )

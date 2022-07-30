@@ -31,7 +31,7 @@ type AppcontrollerV1alpha1Interface interface {
 	AppsGetter
 }
 
-// AppcontrollerV1alpha1Client is used to interact with features provided by the appcontroller.k8s.io group.
+// AppcontrollerV1alpha1Client is used to interact with features provided by the appcontroller.demo group.
 type AppcontrollerV1alpha1Client struct {
 	restClient rest.Interface
 }

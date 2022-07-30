@@ -17,9 +17,14 @@ limitations under the License.
 package main
 
 import (
+	"app-controller/pkg/apis/appcontroller/v1alpha1"
 	"context"
 	"fmt"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/intstr"
+
+	v15 "k8s.io/api/networking/v1"
 
 	v14 "k8s.io/client-go/listers/networking/v1"
 
@@ -264,63 +269,53 @@ func (c *Controller) syncHandler(key string) error {
 	if errors.IsNotFound(err) {
 		deployment, err = c.kubeclientset.AppsV1().Deployments(app.Namespace).Create(context.TODO(), newDeployment(app), metav1.CreateOptions{})
 	}
-	serveice, err := c.serviceLister.Services(app.Namespace).Get(app.Spec.Service.Name)
-	if errors.IsNotFound(err) {
-
+	if err != nil {
+		return err
 	}
-	// If an error occurs during Get/Create, we'll requeue the item so we can
-	// attempt processing again later. This could have been caused by a
-	// temporary network failure, or any other transient reason.
+	//如果没有service则创建
+	service, err := c.serviceLister.Services(app.Namespace).Get(app.Spec.Service.Name)
+	if errors.IsNotFound(err) {
+		service, err = c.kubeclientset.CoreV1().Services(app.Namespace).Create(context.TODO(), newService(app), metav1.CreateOptions{})
+	}
+	if err != nil {
+		return err
+	}
+
+	//如果没有ingress则创建
+	ingress, err := c.ingressLister.Ingresses(app.Namespace).Get(app.Spec.Ingress.Name)
+	if errors.IsNotFound(err) {
+		ingress, err = c.kubeclientset.NetworkingV1().Ingresses(app.Namespace).Create(context.TODO(), newIngress(app), metav1.CreateOptions{})
+	}
+
 	if err != nil {
 		return err
 	}
 
 	// If the Deployment is not controlled by this App resource, we should log
 	// a warning to the event recorder and return error msg.
+
+	//判断deployment,service和ingress是否是通过app创建的资源
+
 	if !metav1.IsControlledBy(deployment, app) {
 		msg := fmt.Sprintf(MessageResourceExists, deployment.Name)
 		c.recorder.Event(app, corev1.EventTypeWarning, ErrResourceExists, msg)
 		return fmt.Errorf("%s", msg)
 	}
 
-	// If this number of the replicas on the App resource is specified, and the
-	// number does not equal the current desired replicas on the Deployment, we
-	// should update the Deployment resource.
-	if app.Spec.Replicas != nil && *app.Spec.Replicas != *deployment.Spec.Replicas {
-		klog.V(4).Infof("App %s replicas: %d, deployment replicas: %d", name, *app.Spec.Replicas, *deployment.Spec.Replicas)
-		deployment, err = c.kubeclientset.AppsV1().Deployments(app.Namespace).Update(context.TODO(), newDeployment(app), metav1.UpdateOptions{})
+	if !metav1.IsControlledBy(service, app) {
+		msg := fmt.Sprintf(MessageResourceExists, service.Name)
+		c.recorder.Event(app, corev1.EventTypeWarning, ErrResourceExists, msg)
+		return fmt.Errorf("%s", msg)
 	}
 
-	// If an error occurs during Update, we'll requeue the item so we can
-	// attempt processing again later. This could have been caused by a
-	// temporary network failure, or any other transient reason.
-	if err != nil {
-		return err
-	}
-
-	// Finally, we update the status block of the App resource to reflect the
-	// current state of the world
-	err = c.updateAppStatus(app, deployment)
-	if err != nil {
-		return err
+	if !metav1.IsControlledBy(ingress, app) {
+		msg := fmt.Sprintf(MessageResourceExists, ingress.Name)
+		c.recorder.Event(app, corev1.EventTypeWarning, ErrResourceExists, msg)
+		return fmt.Errorf("%s", msg)
 	}
 
 	c.recorder.Event(app, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
-}
-
-func (c *Controller) updateAppStatus(App *appv1alpha1.app, deployment *appsv1.Deployment) error {
-	// NEVER modify objects from the store. It's a read-only, local cache.
-	// You can use DeepCopy() to make a deep copy of original object and modify this copy
-	// Or create a copy manually for better performance
-	AppCopy := app.DeepCopy()
-	AppCopy.Status.AvailableReplicas = deployment.Status.AvailableReplicas
-	// If the CustomResourceSubresources feature gate is not enabled,
-	// we must use Update instead of UpdateStatus to update the Status block of the App resource.
-	// UpdateStatus will not allow changes to the Spec of the resource,
-	// which is ideal for ensuring nothing other than resource status has been updated.
-	_, err := c.appclientset.appclientset().Apps(App.Namespace).UpdateStatus(context.TODO(), AppCopy, metav1.UpdateOptions{})
-	return err
 }
 
 // enqueueApp takes a App resource and converts it into a namespace/name
@@ -376,24 +371,22 @@ func (c *Controller) handleObject(obj interface{}) {
 	}
 }
 
-// newDeployment creates a new Deployment for a App resource. It also sets
-// the appropriate OwnerReferences on the resource so handleObject can discover
-// the App resource that 'owns' it.
-func newDeployment(App *appv1alpha1.App) *appsv1.Deployment {
+//创建deployment
+func newDeployment(app *v1alpha1.App) *appsv1.Deployment {
 	labels := map[string]string{
-		"app":        "nginx",
-		"controller": App.Name,
+		"app":        "app-deployment",
+		"controller": app.Name,
 	}
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      App.Spec.DeploymentName,
-			Namespace: App.Namespace,
+			Name:      app.Spec.Deployment.Name,
+			Namespace: app.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(App, appv1alpha1.SchemeGroupVersion.WithKind("App")),
+				*metav1.NewControllerRef(app, v1alpha1.SchemeGroupVersion.WithKind("App")),
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: App.Spec.Replicas,
+			Replicas: &app.Spec.Deployment.Replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},
@@ -404,8 +397,73 @@ func newDeployment(App *appv1alpha1.App) *appsv1.Deployment {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  "nginx",
-							Image: "nginx:latest",
+							Name:  app.Spec.Deployment.Name,
+							Image: app.Spec.Deployment.Image,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+//创建service
+func newService(app *v1alpha1.App) *corev1.Service {
+	labels := map[string]string{
+		"app":        "app-deployment",
+		"controller": app.Name,
+	}
+
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      app.Spec.Deployment.Name,
+			Namespace: app.Namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(app, v1alpha1.SchemeGroupVersion.WithKind("App")),
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: labels,
+			Ports: []corev1.ServicePort{
+				{
+					Protocol:   corev1.ProtocolTCP,
+					Port:       80,
+					TargetPort: intstr.IntOrString{IntVal: 80},
+				},
+			},
+		},
+	}
+}
+
+//创建ingress
+func newIngress(app *v1alpha1.App) *v15.Ingress {
+	pathType := v15.PathTypePrefix
+	return &v15.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      app.Spec.Deployment.Name,
+			Namespace: app.Namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(app, v1alpha1.SchemeGroupVersion.WithKind("App")),
+			},
+		},
+		Spec: v15.IngressSpec{
+			Rules: []v15.IngressRule{
+				{
+					IngressRuleValue: v15.IngressRuleValue{
+						HTTP: &v15.HTTPIngressRuleValue{
+							Paths: []v15.HTTPIngressPath{{
+								Path:     "/",
+								PathType: &pathType,
+								Backend: v15.IngressBackend{
+									Service: &v15.IngressServiceBackend{
+										Name: app.Spec.Service.Name,
+										Port: v15.ServiceBackendPort{
+											Number: 80,
+										},
+									},
+								},
+							},
+							},
 						},
 					},
 				},
