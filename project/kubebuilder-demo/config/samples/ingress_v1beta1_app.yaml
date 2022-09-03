@@ -1,0 +1,10 @@
+apiVersion: ingress.my.domain/v1beta1
+kind: App
+metadata:
+  name: app-sample
+spec:
+  image: nginx:latest
+  replicas: 3
+  enable_ingress: false
+  enable_service: false
+

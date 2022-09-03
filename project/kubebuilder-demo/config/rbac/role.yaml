@@ -1,0 +1,33 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - ingress.my.domain
+  resources:
+  - apps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ingress.my.domain
+  resources:
+  - apps/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ingress.my.domain
+  resources:
+  - apps/status
+  verbs:
+  - get
+  - patch
+  - update

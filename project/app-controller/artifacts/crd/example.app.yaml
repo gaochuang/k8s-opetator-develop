@@ -1,0 +1,13 @@
+apiVersion: appcontroller.demo/v1alpha1
+kind:APP
+metadata:
+  name: app-demo
+spec:
+  deployment:
+    name: app-deployment-demo
+    replicas: 2
+  service:
+    name: app-service-demo
+  ingress:
+    name: app-ingress-demo
+
