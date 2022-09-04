@@ -1,0 +1,38 @@
+bases:
+  - ../default
+
+patches:
+  - patch: |
+      - op: "remove"
+        path: "/spec/dnsNames"
+    target:
+      kind: Certificate
+  - patch: |
+      - op: "add"
+        path: "/spec/ipAddresses"
+        value: ["192.168.31.100"]
+    target:
+      kind: Certificate
+  - patch: |
+      - op: "add"
+        path: "/webhooks/0/clientConfig/url"
+        value: "https://192.168.31.100:9443/mutate-ingress-baiding-tech-v1beta1-app"
+    target:
+      kind: MutatingWebhookConfiguration
+  - patch: |
+      - op: "add"
+        path: "/webhooks/0/clientConfig/url"
+        value: "https://192.168.31.100:9443/validate-ingress-baiding-tech-v1beta1-app"
+    target:
+      kind: ValidatingWebhookConfiguration
+  - patch: |
+      - op: "remove"
+        path: "/webhooks/0/clientConfig/service"
+    target:
+      kind: MutatingWebhookConfiguration
+  - patch: |
+      - op: "remove"
+        path: "/webhooks/0/clientConfig/service"
+    target:
+      kind: ValidatingWebhookConfiguration
+  

@@ -5,7 +5,7 @@ metadata:
   namespace: {{.ObjectMeta.Namespace}}
 spec:
   rules:
-    - host: {{.ObjectMeta.Name}}.baiding.tech
+    - host: {{.ObjectMeta.Name}}.test.tech
       http:
         paths:
           - path: /

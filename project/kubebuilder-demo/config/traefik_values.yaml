@@ -1,0 +1,3 @@
+ingressClass:
+  enabled: true
+  isDefaultClass: true #指定为默认的ingress
